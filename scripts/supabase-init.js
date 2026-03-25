@@ -112,7 +112,7 @@ export async function initSupabase({
 
   // ── 5. Apply schema ────────────────────────────────────────────────────────
   const resolvedSchemaPath =
-    schemaPath || path.join(__dirname, '..', 'supabase-schema.sql');
+    schemaPath || path.join(__dirname, '..', 'templates', 'supabase-schema.sql');
 
   if (fs.existsSync(resolvedSchemaPath)) {
     console.log('  📋 Applying database schema...');
@@ -139,7 +139,7 @@ export async function initSupabase({
     }
   } else {
     console.log('  ℹ️  No schema file found — skipping schema application.');
-    console.log('       Add supabase-schema.sql to the root to auto-apply it.');
+    console.log('       Add supabase-schema.sql to templates/ to auto-apply it.');
   }
 
   return {

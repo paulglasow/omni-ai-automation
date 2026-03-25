@@ -93,7 +93,7 @@ export function generateEnvFile(config = {}, { overwrite = false } = {}) {
 
   // ── Copy template if it doesn't exist yet ─────────────────────────────────
   if (!fs.existsSync(templatePath)) {
-    const templateSrc = path.join(ROOT, '.env.template');
+    const templateSrc = path.join(ROOT, 'templates', '.env.template');
     if (fs.existsSync(templateSrc)) {
       fs.copyFileSync(templateSrc, templatePath);
     }
