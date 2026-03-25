@@ -1,21 +1,58 @@
-# Dependencies
-node_modules/
+# OmniAI v4 — Git Ignore
+# These files are excluded from version control for security and cleanliness.
 
-# Build output
-build/
-dist/
-
-# Environment files
+# ── Secrets — NEVER commit these ─────────────────────────────────────────────
 .env
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.development
+.env.production
 
-# Logs
+# Generated deployment URL (contains your live URL — exclude for privacy)
+.deploy-url
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+.npm/
+.yarn/
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+.next/
+out/
+dist/
+build/
+.vercel/
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# ── Editor files ─────────────────────────────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+*.code-workspace
+.idea/
+*.suo
+*.user
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# OS files
-.DS_Store
+# ── Runtime ───────────────────────────────────────────────────────────────────
+*.pid
+*.seed
+*.pid.lock
+
+# ── Coverage ──────────────────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── Temp files ────────────────────────────────────────────────────────────────
+tmp/
+temp/
+*.tmp

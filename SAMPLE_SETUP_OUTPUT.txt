@@ -1,0 +1,100 @@
+══════════════════════════════════════════════════════════════
+  OmniAI v4 — Automated Setup
+══════════════════════════════════════════════════════════════
+
+Welcome! This wizard will set up your OmniAI v4 environment in about 5 minutes.
+
+What gets automated:
+  ✅  GitHub repository (omni-ai)
+  ✅  Vercel deployment (live URL)
+  ✅  Supabase database
+  ✅  .env file generation
+
+What you do after (40 min):
+  📝  Add AI API keys (OpenAI, Gemini, Perplexity)
+  📧  Email and calendar setup
+  💰  Financial account linking
+  📱  Siri shortcuts
+
+See SETUP_CHECKLIST.md and MANUAL_STEPS.md for the full guide.
+
+
+[1/6] Loading existing configuration...
+
+[2/6] Collecting API tokens (values are hidden as you type)
+
+You'll need 3 tokens. Get them here:
+  GitHub   → https://github.com/settings/tokens?type=beta  (scope: repo, workflow)
+  Vercel   → https://vercel.com/account/tokens
+  Supabase → https://supabase.com/dashboard/account/tokens
+
+Press Enter to keep an existing value.
+
+  GitHub Token (ghp_...): ****************************
+  GitHub Username: paulglasow
+  Vercel Token: ****************************
+  Supabase Token: ****************************
+
+[3/6] Setting up GitHub repository...
+
+📦 Setting up GitHub repository: paulglasow/omni-ai
+  ✅ Repository created: https://github.com/paulglasow/omni-ai
+  ℹ️  Skipped (not found locally): src/omni-v4.jsx
+  ℹ️  Skipped (not found locally): electron-main.js
+  ℹ️  Skipped (not found locally): supabase-schema.sql
+  🔐 Configuring repository secrets...
+  ✅ Secret configured: VERCEL_TOKEN
+  ✅ Secret configured: SUPABASE_TOKEN
+
+[4/6] Initializing Supabase database...
+
+🗄️  Setting up Supabase project: omni-ai
+  ℹ️  Using organization: Paul Glasow Personal (org_abcdef123456)
+  ✅ Project created: abcdefghijklmnop
+  ⏳ Waiting for database to initialize (this takes 1-2 minutes)...
+..........
+  ✅ Database is ready!
+  ✅ Project URL: https://abcdefghijklmnop.supabase.co
+  ℹ️  No schema file found — skipping schema application.
+       Add supabase-schema.sql to the root to auto-apply it.
+
+[5/6] Deploying to Vercel...
+
+🚀 Setting up Vercel project: omni-ai
+  ✅ Project ready: prj_ABCDEFGHIJKLMNOPQRSTUVWXYZabcd
+  🔧 Setting environment variables...
+  ✅ Env var set: SUPABASE_URL
+  ✅ Env var set: SUPABASE_ANON_KEY
+  🏗️  Triggering deployment...
+  ✅ Deployment triggered: https://omni-ai-paulglasow.vercel.app
+  ⏳ Waiting for deployment to complete (this may take 2-3 minutes)...
+.........
+  ✅ Deployment ready: https://omni-ai-paulglasow.vercel.app
+
+[6/6] Generating .env file...
+  ✅ .env file written: /Users/paulglasow/omni-ai-automation/.env
+
+══════════════════════════════════════════════════════════════
+  Setup Complete! Here's what happened:
+══════════════════════════════════════════════════════════════
+
+✅ GitHub Repository:    https://github.com/paulglasow/omni-ai
+✅ Vercel Live URL:      https://omni-ai-paulglasow.vercel.app
+✅ Supabase Project:     https://abcdefghijklmnop.supabase.co
+✅ .env file:            /Users/paulglasow/omni-ai-automation/.env
+
+── Next Steps (40 minutes) ───────────────────────────────────────
+1. Add AI keys to your .env file:
+     OPENAI_API_KEY    → https://platform.openai.com/api-keys
+     GEMINI_API_KEY    → https://aistudio.google.com/app/apikey
+     PERPLEXITY_API_KEY → https://www.perplexity.ai/settings/api
+
+2. Follow SETUP_CHECKLIST.md for the remaining manual steps.
+
+3. Verify everything with:  npm run verify
+
+── Resources ─────────────────────────────────────────────────────
+  TOKENS_NEEDED.md    — How to generate every API key
+  SETUP_CHECKLIST.md  — Full phase-by-phase checklist
+  DEPLOYMENT_GUIDE.md — CI/CD configuration
+  MANUAL_STEPS.md     — Non-automated setup (email, finance, Siri)
