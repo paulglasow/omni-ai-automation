@@ -1,6 +1,6 @@
 /**
  * OmniAI v4 — Main React Interface
- * File: templates/omni-v4.jsx
+ * File: src/App.js
  *
  * This is the primary chat interface that connects to all 4 AI models.
  * Deploy this to Vercel (or any React hosting) to get your live URL.

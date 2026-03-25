@@ -59,9 +59,9 @@ export async function setupGitHubRepo({
 
   // ── 2. Upload source files (if they exist locally) ────────────────────────
   const filesToUpload = [
-    { localPath: path.join(__dirname, '..', 'src', 'omni-v4.jsx'), remotePath: 'src/omni-v4.jsx' },
-    { localPath: path.join(__dirname, '..', 'electron-main.js'), remotePath: 'electron-main.js' },
-    { localPath: path.join(__dirname, '..', 'supabase-schema.sql'), remotePath: 'supabase-schema.sql' },
+    { localPath: path.join(__dirname, '..', 'src', 'App.js'), remotePath: 'src/App.js' },
+    { localPath: path.join(__dirname, '..', 'templates', 'electron-main.js'), remotePath: 'templates/electron-main.js' },
+    { localPath: path.join(__dirname, '..', 'templates', 'supabase-schema.sql'), remotePath: 'templates/supabase-schema.sql' },
   ];
 
   for (const { localPath, remotePath } of filesToUpload) {
