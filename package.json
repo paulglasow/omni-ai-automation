@@ -1,0 +1,55 @@
+{
+  "name": "omni-ai-v4",
+  "version": "4.0.0",
+  "description": "OmniAI v4 — Multi-model AI orchestration platform with financial, work, and hobby automation",
+  "private": true,
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --watchAll=false",
+    "verify": "node scripts/verify.js",
+    "setup:keys": "node config/setup-ai-keys.js",
+    "setup:github": "node config/setup-github.js",
+    "setup:vercel": "node config/setup-vercel.js",
+    "setup:supabase": "node config/setup-supabase.js",
+    "setup:siri": "node config/setup-siri.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.9",
+    "@google/generative-ai": "^0.11.0",
+    "@supabase/supabase-js": "^2.43.0",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.47.1",
+    "dotenv": "^16.4.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "ai",
+    "openai",
+    "anthropic",
+    "claude",
+    "gemini",
+    "perplexity",
+    "automation",
+    "financial",
+    "github-copilot"
+  ],
+  "license": "MIT",
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
