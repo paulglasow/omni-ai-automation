@@ -86,6 +86,25 @@ Your Question
 Combined, Better Answer
 ```
 
+### Perplexity Integration — Evaluation
+
+**Is Perplexity duplicative of the other AI integrations? No.** Each AI in OmniAI v4 provides capabilities the others cannot:
+
+| AI | Unique Capability | What It Adds Over Perplexity |
+|---|---|---|
+| **ChatGPT (OpenAI)** | Creative writing, code generation, structured JSON output | Static knowledge base, deterministic reasoning, no per-query web-search cost |
+| **Claude (Anthropic)** | 200k-token context window, nuanced long-document analysis | Processes full books/reports in one prompt; Perplexity truncates context |
+| **Gemini (Google)** | Multimodal reasoning (text + images/video), tight Google ecosystem tie-in | Can analyze images and spreadsheet data; Perplexity is text-only |
+| **Perplexity** | **Real-time web search, inline citations, live data** | The only model here that actively queries the internet at inference time |
+
+**What Perplexity adds that the others cannot provide:**
+- **Live internet access** — answers are grounded in today's web, not a training cut-off from months ago
+- **Inline citations** — every factual claim links back to a source URL
+- **Breaking news & current events** — stock prices, sports scores, today's headlines, new product releases
+- **Up-to-date research** — recent papers, newly published data, regulatory changes
+
+**Auto-routing logic** (`api/chat.js`): When you use "Auto (Best AI)" mode, OmniAI routes queries containing keywords like *"latest," "current," "news," "price," "today"* automatically to Perplexity, while code questions go to GPT-4o, long-document tasks go to Claude, and data/math questions go to Gemini.
+
 ---
 
 ## 3. Step 1 — Download & Prepare (5 min)

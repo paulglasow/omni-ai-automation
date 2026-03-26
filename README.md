@@ -59,12 +59,18 @@ omni-ai-automation/
 
 ## 🤖 The 4 AIs
 
-| AI | Best for |
-|---|---|
-| **ChatGPT** (OpenAI) | Creative writing, coding, general questions |
-| **Claude** (Anthropic) | Document analysis, long-form writing, reasoning |
-| **Gemini** (Google) | Data analysis, math, research |
-| **Perplexity** | Real-time web search, current events |
+| AI | Best for | Unique contribution |
+|---|---|---|
+| **ChatGPT** (OpenAI) | Creative writing, coding, general questions | Broad reasoning, structured output, code generation |
+| **Claude** (Anthropic) | Document analysis, long-form writing, reasoning | 200k-token context window; analyses entire books in one prompt |
+| **Gemini** (Google) | Data analysis, math, research | Multimodal — processes text, images, and video |
+| **Perplexity** | Real-time web search, current events, citations | **Only model with live internet access** — answers grounded in today's web with inline source links |
+
+> **Are the AI integrations duplicative of Perplexity?**  
+> No. Perplexity is the *only* provider in OmniAI that performs a live web search at query time.
+> OpenAI, Claude, and Gemini use static training data; they add capabilities Perplexity lacks
+> (code execution, 200k-context documents, multimodal input). They are complementary, not duplicative.
+> See [IMPLEMENTATION_GUIDE.md → Perplexity Integration — Evaluation](IMPLEMENTATION_GUIDE.md#perplexity-integration--evaluation) for the full analysis.
 
 ---
 

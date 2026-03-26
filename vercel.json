@@ -2,6 +2,10 @@
   "version": 2,
   "builds": [
     {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
@@ -10,6 +14,10 @@
     }
   ],
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
     {
       "src": "/static/(.*)",
       "dest": "/static/$1"
@@ -23,6 +31,7 @@
     "SUPABASE_URL": "@supabase_url",
     "SUPABASE_ANON_KEY": "@supabase_anon_key",
     "OPENAI_API_KEY": "@openai_api_key",
+    "ANTHROPIC_API_KEY": "@anthropic_api_key",
     "GEMINI_API_KEY": "@gemini_api_key",
     "PERPLEXITY_API_KEY": "@perplexity_api_key"
   },

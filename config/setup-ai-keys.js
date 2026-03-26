@@ -82,6 +82,49 @@ async function testAnthropic() {
   return false;
 }
 
+async function testGemini() {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return false;
+  try {
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    const genAI = new GoogleGenerativeAI(key);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const result = await model.generateContent('Hi');
+    if (result && result.response) {
+      console.log(`    ${GREEN}→ Live test passed${RESET}`);
+      return true;
+    }
+  } catch (err) {
+    console.log(`    ${YELLOW}→ Live test failed: ${err.message}${RESET}`);
+  }
+  return false;
+}
+
+async function testPerplexity() {
+  const key = process.env.PERPLEXITY_API_KEY;
+  if (!key) return false;
+  try {
+    const { OpenAI } = require('openai');
+    // Perplexity uses an OpenAI-compatible endpoint — no extra package needed.
+    const client = new OpenAI({
+      apiKey:  key,
+      baseURL: 'https://api.perplexity.ai',
+    });
+    const response = await client.chat.completions.create({
+      model:      'sonar-pro',
+      messages:   [{ role: 'user', content: 'Hi' }],
+      max_tokens: 5,
+    });
+    if (response && response.choices) {
+      console.log(`    ${GREEN}→ Live test passed (sonar-pro model, web-search-augmented)${RESET}`);
+      return true;
+    }
+  } catch (err) {
+    console.log(`    ${YELLOW}→ Live test failed: ${err.message}${RESET}`);
+  }
+  return false;
+}
+
 async function main() {
   console.log(`\n${BOLD}OmniAI v4 — AI Key Validation${RESET}\n`);
 
@@ -99,6 +142,10 @@ async function main() {
   await testOpenAI();
   console.log('  Testing Anthropic...');
   await testAnthropic();
+  console.log('  Testing Google Gemini...');
+  await testGemini();
+  console.log('  Testing Perplexity AI...');
+  await testPerplexity();
 
   console.log(`\n${BOLD}Summary:${RESET} ${GREEN}${passed} valid${RESET}, ${failed > 0 ? RED : RESET}${failed} missing/invalid${RESET}\n`);
 
