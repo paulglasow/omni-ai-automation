@@ -1,35 +1,33 @@
 {
-  "name": "omni-ai-automation",
-  "version": "1.0.0",
-  "description": "Automated setup system for OmniAI v4 — reduces 2-3 hour setup to ~45 minutes",
+  "name": "omni-ai",
+  "version": "4.0.0",
+  "private": true,
   "type": "module",
-  "main": "scripts/github-setup.js",
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "setup": "node scripts/run-setup.js",
-    "start": "node scripts/verify-setup.js",
-    "build": "react-scripts build",
-    "deploy": "node scripts/vercel-deploy.js",
-    "dev": "react-scripts start",
     "validate": "node scripts/validate-env.js",
     "verify": "node scripts/verify-setup.js"
   },
   "dependencies": {
-    "@octokit/rest": "^20.0.2",
-    "@supabase/supabase-js": "^2.39.0",
-    "dotenv": "^16.4.1",
-    "libsodium-wrappers": "^0.7.13",
-    "node-fetch": "^3.3.2",
-    "readline-sync": "^1.4.10"
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@google/generative-ai": "^0.21.0",
+    "@supabase/ssr": "^0.3.0",
+    "@supabase/supabase-js": "^2.43.0",
+    "next": "^14.2.0",
+    "openai": "^4.52.0",
+    "pdf-parse": "^2.4.5",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.23.7",
-    "@babel/preset-react": "^7.23.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-scripts": "^5.0.1"
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0"
   },
   "engines": {
-    "node": ">=18.0.0"
-  },
-  "license": "MIT"
+    "node": ">=20.0.0"
+  }
 }

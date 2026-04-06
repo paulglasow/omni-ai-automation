@@ -1,151 +1,88 @@
-# OmniAI v4 — Automated Setup
+# OmniAI v4
 
-Reduce your OmniAI v4 setup from **2-3 hours to ~45 minutes** with one command.
+Multi-AI personal assistant platform. Chat with 4 AI providers, analyze files, track tasks, manage finances — all in one place.
 
-## ⚡ Quick Start
+## Features
+
+- **Multi-AI Chat** — Assist mode auto-routes to the best AI (Claude, GPT-4o, Gemini, Perplexity)
+- **Smart Routing** — Research → Perplexity, Code → GPT-4o, Writing → Claude, Data → Gemini
+- **File Upload & Analysis** — Upload text files, get AI-powered analysis
+- **Task Manager** — Priority-based task tracking
+- **Meeting Transcriber** — Paste transcript → AI extracts action items & decisions
+- **Wealth & Finance** — Empower/Monarch data → AI financial analysis
+- **Learning Tracker** — Track topics with progress bars
+- **GitHub & Code** — Code review, debugging, AI-assisted development
+- **Workspaces** — Organize work into shareable projects
+- **Google OAuth** — Secure multi-user authentication via Supabase
+- **Mobile Responsive** — Works on iPhone & desktop, installable as PWA
+- **Server-Side AI** — All API keys stay on the server, never exposed to browser
+
+## Quick Start
 
 ```bash
+# 1. Clone and install
 git clone https://github.com/paulglasow/omni-ai-automation.git
 cd omni-ai-automation
 npm install
-npm run setup
+
+# 2. Add your keys
+cp .env.example .env.local
+# Edit .env.local with your API keys
+
+# 3. Run locally
+npm run dev
+# Open http://localhost:3000
 ```
 
-That's it. The wizard handles everything else.
+## Environment Variables
 
----
+Create `.env.local` with:
 
-## 📋 Prerequisites
+```env
+# Required — at least one AI provider
+ANTHROPIC_API_KEY=sk-ant-...
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=AIza...
+PERPLEXITY_API_KEY=pplx-...
 
-| Tool | Version | Install |
-|------|---------|---------|
-| Node.js | ≥ 18 | [nodejs.org](https://nodejs.org) |
-| npm | ≥ 9 | Included with Node.js |
-| git | any | [git-scm.com](https://git-scm.com) |
+# Required — Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+```
 
----
+## Supabase Setup
 
-## 🔑 Tokens You'll Need
+1. Create a project at [supabase.com](https://supabase.com)
+2. Go to SQL Editor → paste `supabase/schema.sql` → Run
+3. Go to Storage → Create bucket named `uploads` (private, 25MB limit)
+4. (Optional) Enable Google OAuth: Authentication → Providers → Google
 
-You'll be prompted for **3 tokens** during setup:
-
-| Token | Where to get it | Cost |
-|-------|----------------|------|
-| GitHub Token | [github.com/settings/tokens](https://github.com/settings/tokens?type=beta) | Free |
-| Vercel Token | [vercel.com/account/tokens](https://vercel.com/account/tokens) | Free |
-| Supabase Token | [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens) | Free |
-
-See **[TOKENS_NEEDED.md](TOKENS_NEEDED.md)** for step-by-step instructions.
-
----
-
-## ✅ What Gets Automated (~5 minutes)
-
-- **GitHub** — Creates `omni-ai` repository, uploads source files, configures secrets
-- **Vercel** — Creates project, connects GitHub, deploys live URL
-- **Supabase** — Creates project, runs database schema, retrieves API keys
-- **.env file** — Generated automatically with all credentials filled in
-
-## 📝 What's Manual (~40 minutes)
-
-- AI API keys (OpenAI, Gemini, Perplexity) — add to `.env` after setup
-- Email forwarding and calendar sync
-- Financial account linking (Empower, Monarch)
-- Siri shortcuts
-- GoDaddy / Microsoft 365
-
-See **[SETUP_CHECKLIST.md](SETUP_CHECKLIST.md)** for the full checklist with time estimates.
-
----
-
-## 🛠️ Available Commands
+## Deploy to Vercel
 
 ```bash
-npm run setup     # Run the full automated setup wizard
-npm run validate  # Check your .env file for missing variables
-npm run verify    # Confirm GitHub, Vercel, and Supabase are all working
-npm run build     # Build the React app
-npm run deploy    # Deploy to Vercel manually
-npm run dev       # Start development server
+npx vercel --prod
 ```
 
-Or with Make:
+Or import the repo at [vercel.com](https://vercel.com) and add your env vars.
 
-```bash
-make setup   # Run full automation
-make status  # Check setup progress
-make clean   # Remove build artifacts
-```
+## Architecture
 
----
+- **Next.js 14** App Router with JavaScript
+- **Tailwind CSS** for styling
+- **Supabase** for database, auth, file storage
+- **4 AI Providers** called server-side via `/api/chat`
+- **Assist Mode** uses keyword heuristics to route to the best provider
 
-## 📁 Repository Structure
+## How Assist Mode Works
 
-```
-omni-ai-automation/
-├── setup.sh                    # Shell entry point (calls npm run setup)
-├── package.json                # Dependencies and scripts
-├── vercel.json                 # Vercel project configuration
-├── .env.template               # Environment variables template
-├── .env.example                # Example values (safe to commit)
-├── .gitignore                  # Keeps secrets out of git
-│
-├── scripts/
-│   ├── run-setup.js            # Main orchestrator (npm run setup)
-│   ├── github-setup.js         # GitHub repo + secrets
-│   ├── vercel-deploy.js        # Vercel project + deployment
-│   ├── supabase-init.js        # Supabase project + schema
-│   ├── env-generator.js        # .env file writer
-│   ├── validate-env.js         # .env validation
-│   └── verify-setup.js         # Post-setup health checks
-│
-├── .github/
-│   └── workflows/
-│       └── deploy.yml          # Auto-deploy on push to main
-│
-├── README.md                   # This file
-├── SETUP_CHECKLIST.md          # Phase-by-phase checklist
-├── TOKENS_NEEDED.md            # API key generation guide
-├── DEPLOYMENT_GUIDE.md         # CI/CD setup instructions
-├── MANUAL_STEPS.md             # Non-automated tasks
-└── SAMPLE_SETUP_OUTPUT.txt     # What a successful run looks like
-```
+Assist analyzes your message and routes to the best AI:
 
----
+| Query Type | Provider | Keywords |
+|---|---|---|
+| Research | Perplexity | latest, news, trends, current, search |
+| Code | GPT-4o | code, debug, implement, function |
+| Writing | Claude | write, draft, analyze, strategy |
+| Data/GIS | Gemini | map, data, math, spreadsheet, zoning |
 
-## 🔒 Security
-
-- Tokens are **never logged** to the console or stored in git
-- `.env` is in `.gitignore` — will never be committed
-- Repository secrets are encrypted before being sent to GitHub
-- Service role keys are kept server-side only
-
----
-
-## 🆘 Troubleshooting
-
-**Setup fails at GitHub step**
-→ Ensure your token has `repo` and `workflow` scopes
-
-**Vercel deployment not appearing**
-→ Check [vercel.com/dashboard](https://vercel.com/dashboard) — first deploy can take 3-5 minutes
-
-**Supabase project not ready**
-→ Wait 2 minutes and re-run `npm run verify`
-
-**Token format errors**
-→ Run `npm run validate` to see which variables are missing or malformed
-
-For detailed troubleshooting, see **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)**.
-
----
-
-## 📚 Documentation
-
-| File | Contents |
-|------|----------|
-| [SETUP_CHECKLIST.md](SETUP_CHECKLIST.md) | Complete phase-by-phase checklist |
-| [TOKENS_NEEDED.md](TOKENS_NEEDED.md) | How to generate every API key |
-| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) | CI/CD and Vercel setup |
-| [MANUAL_STEPS.md](MANUAL_STEPS.md) | Email, finance, Siri, and more |
-| [SAMPLE_SETUP_OUTPUT.txt](SAMPLE_SETUP_OUTPUT.txt) | What a successful run looks like |
+If the preferred provider is not configured, Assist falls back gracefully to the next available provider.
