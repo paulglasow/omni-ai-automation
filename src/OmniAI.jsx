@@ -14,6 +14,8 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const MODEL_OPTIONS = [
   { value: 'qa',        label: 'QA/QC Analysis' },
@@ -26,6 +28,39 @@ const MODEL_OPTIONS = [
 ];
 
 const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024; // 3MB total limit
+
+// Shared markdown styles for AI responses
+const markdownStyle = {
+  lineHeight: 1.6,
+  wordBreak: 'break-word',
+};
+const markdownComponents = {
+  p: ({ children }) => <p style={{ margin: '0 0 8px' }}>{children}</p>,
+  h2: ({ children }) => <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '12px 0 4px', borderBottom: '1px solid #e0e0e0', paddingBottom: '4px' }}>{children}</h2>,
+  h3: ({ children }) => <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '10px 0 4px' }}>{children}</h3>,
+  ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ul>,
+  ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ol>,
+  li: ({ children }) => <li style={{ marginBottom: '2px' }}>{children}</li>,
+  code: ({ inline, children }) =>
+    inline
+      ? <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: '3px', fontSize: '0.9em', fontFamily: 'monospace' }}>{children}</code>
+      : <pre style={{ background: '#f5f5f5', padding: '10px', borderRadius: '6px', overflow: 'auto', fontSize: '0.85rem', fontFamily: 'monospace', margin: '8px 0' }}><code>{children}</code></pre>,
+  table: ({ children }) => <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: '0.9rem' }}>{children}</table>,
+  th: ({ children }) => <th style={{ border: '1px solid #ddd', padding: '6px 10px', background: '#f5f5f5', textAlign: 'left', fontWeight: 600 }}>{children}</th>,
+  td: ({ children }) => <td style={{ border: '1px solid #ddd', padding: '6px 10px' }}>{children}</td>,
+  blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid #ccc', margin: '8px 0', padding: '4px 12px', color: '#555' }}>{children}</blockquote>,
+  strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+};
+
+function MarkdownContent({ content, color }) {
+  return (
+    <div style={{ ...markdownStyle, color: color || '#222' }}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
 const ACCEPTED_FILE_TYPES = '.txt,.csv,.json,.md,.pdf,.log,.xml,.html,.js,.jsx,.ts,.tsx,.py,.sql,.yaml,.yml';
 
 function formatCost(usd) {
@@ -150,7 +185,7 @@ function MessageBubble({ msg }) {
               <CostBadge usage={{ total: { estimatedCostUsd: msg.primary.usage.estimatedCostUsd } }} />
             )}
           </div>
-          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, color: '#222' }}>{msg.primary.content}</div>
+          <MarkdownContent content={msg.primary.content} />
         </div>
 
         {/* QA Review Card */}
@@ -172,7 +207,7 @@ function MessageBubble({ msg }) {
               <CostBadge usage={{ total: { estimatedCostUsd: msg.qa.usage.estimatedCostUsd } }} />
             )}
           </div>
-          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, color: '#222' }}>{msg.qa.content}</div>
+          <MarkdownContent content={msg.qa.content} />
         </div>
 
         {/* Routing scores */}
@@ -212,7 +247,7 @@ function MessageBubble({ msg }) {
                 <CostBadge usage={{ total: { estimatedCostUsd: msg.usage[provider].estimatedCostUsd } }} />
               )}
             </div>
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{content}</div>
+            <MarkdownContent content={content} />
           </div>
         ))}
       </div>
@@ -237,7 +272,10 @@ function MessageBubble({ msg }) {
           lineHeight: 1.6,
         }}
       >
-        <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+        {isUser
+          ? <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+          : <MarkdownContent content={msg.content} />
+        }
         {isUser && msg.fileNames?.length > 0 && (
           <div style={{ marginTop: '4px', fontSize: '0.75rem', color: '#bbdefb' }}>
             Attached: {msg.fileNames.join(', ')}
@@ -332,10 +370,18 @@ export default function OmniAI() {
       (file) =>
         new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = () =>
-            resolve({ name: file.name, size: file.size, type: file.type, content: reader.result });
+          const isPdf = file.name.toLowerCase().endsWith('.pdf');
+          reader.onload = () => {
+            if (isPdf) {
+              // Send PDF as base64 for server-side text extraction
+              const base64 = reader.result.split(',')[1]; // strip data:...;base64, prefix
+              resolve({ name: file.name, size: file.size, type: 'application/pdf', content: base64, encoding: 'base64' });
+            } else {
+              resolve({ name: file.name, size: file.size, type: file.type, content: reader.result });
+            }
+          };
           reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
-          reader.readAsText(file);
+          isPdf ? reader.readAsDataURL(file) : reader.readAsText(file);
         })
     );
 
@@ -388,6 +434,7 @@ export default function OmniAI() {
       name: f.name,
       type: f.type,
       content: f.content,
+      ...(f.encoding ? { encoding: f.encoding } : {}),
     }));
     setAttachedFiles([]);
 
