@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { listConversations, deleteConversation } from './conversations.js';
+import { listConversations, deleteConversation, renameConversation } from './conversations.js';
 import { useTheme } from './ThemeContext.jsx';
 
 const NAV_ITEMS = [
@@ -44,6 +44,9 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [conversations, setConversations] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, themeName, toggleTheme } = useTheme();
@@ -150,11 +153,32 @@ export default function Layout() {
 
           {/* Recent conversations */}
           {conversations.length > 0 && (
-            <div style={{ flex: 1, marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px', overflowY: 'auto' }}>
+            <div style={{ flex: 1, marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
               <div style={{ fontSize: '0.7rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '0 4px 8px' }}>
                 Recent Chats
               </div>
-              {conversations.slice(0, 15).map((conv) => (
+              {conversations.length > 3 && (
+                <input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search chats..."
+                  style={{
+                    padding: '5px 8px',
+                    borderRadius: '5px',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    background: 'rgba(255,255,255,0.06)',
+                    color: '#ccc',
+                    fontSize: '0.75rem',
+                    marginBottom: '6px',
+                    outline: 'none',
+                  }}
+                />
+              )}
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+              {conversations
+                .filter((c) => !searchQuery || c.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                .slice(0, 20)
+                .map((conv) => (
                 <div
                   key={conv.id}
                   style={{
@@ -170,15 +194,53 @@ export default function Layout() {
                     marginBottom: '1px',
                   }}
                   onClick={() => {
-                    navigate(`/chat?c=${conv.id}`);
-                    if (isMobile) setSidebarOpen(false);
+                    if (editingId !== conv.id) {
+                      navigate(`/chat?c=${conv.id}`);
+                      if (isMobile) setSidebarOpen(false);
+                    }
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                 >
-                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {conv.title}
-                  </span>
+                  {editingId === conv.id ? (
+                    <input
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      onBlur={() => {
+                        if (editTitle.trim()) renameConversation(conv.id, editTitle.trim());
+                        setEditingId(null);
+                        setConversations(listConversations());
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') { e.target.blur(); }
+                        if (e.key === 'Escape') { setEditingId(null); }
+                      }}
+                      autoFocus
+                      style={{
+                        flex: 1,
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '3px',
+                        color: '#fff',
+                        fontSize: '0.8rem',
+                        padding: '1px 4px',
+                        outline: 'none',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span
+                      style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setEditingId(conv.id);
+                        setEditTitle(conv.title);
+                      }}
+                      title="Double-click to rename"
+                    >
+                      {conv.title}
+                    </span>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -201,6 +263,7 @@ export default function Layout() {
                   </button>
                 </div>
               ))}
+              </div>
             </div>
           )}
 

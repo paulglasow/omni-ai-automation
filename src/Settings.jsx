@@ -39,6 +39,8 @@ function StatusDot({ status }) {
 
 export default function Settings() {
   const { theme } = useTheme();
+  const [sysPrompt, setSysPrompt] = useState(() => localStorage.getItem('omni_system_prompt') || '');
+  const [promptSaved, setPromptSaved] = useState(false);
   const [providerStatus, setProviderStatus] = useState(
     Object.fromEntries(PROVIDERS.map((p) => [p.key, 'unknown']))
   );
@@ -161,6 +163,78 @@ export default function Settings() {
               </span>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* System Prompt */}
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '0.85rem', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+          System Prompt
+        </h2>
+        <div style={{ background: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '16px' }}>
+          <textarea
+            value={sysPrompt}
+            onChange={(e) => { setSysPrompt(e.target.value); setPromptSaved(false); }}
+            placeholder="Enter a custom system prompt applied to all conversations (e.g., 'You are a senior financial analyst. Always provide data-driven recommendations.')"
+            rows={4}
+            style={{
+              width: '100%',
+              padding: '10px',
+              borderRadius: '8px',
+              border: `1px solid ${theme.border}`,
+              background: theme.bgInput,
+              color: theme.text,
+              fontSize: '0.9rem',
+              fontFamily: 'inherit',
+              resize: 'vertical',
+              boxSizing: 'border-box',
+            }}
+          />
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px', alignItems: 'center' }}>
+            <button
+              onClick={() => {
+                localStorage.setItem('omni_system_prompt', sysPrompt);
+                setPromptSaved(true);
+                setTimeout(() => setPromptSaved(false), 2000);
+              }}
+              style={{
+                padding: '6px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                background: '#1976d2',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+              }}
+            >
+              Save
+            </button>
+            {sysPrompt && (
+              <button
+                onClick={() => {
+                  setSysPrompt('');
+                  localStorage.removeItem('omni_system_prompt');
+                  setPromptSaved(true);
+                  setTimeout(() => setPromptSaved(false), 2000);
+                }}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: '6px',
+                  border: `1px solid ${theme.border}`,
+                  background: theme.bgCard,
+                  color: theme.textSecondary,
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                }}
+              >
+                Clear
+              </button>
+            )}
+            {promptSaved && <span style={{ color: theme.costText, fontSize: '0.85rem' }}>Saved</span>}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: theme.textMuted, marginTop: '8px' }}>
+            This prompt is prepended to every conversation as a system message.
+          </div>
         </div>
       </div>
 
