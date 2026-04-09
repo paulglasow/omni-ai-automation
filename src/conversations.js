@@ -104,3 +104,63 @@ export function deleteConversation(id) {
   const all = loadAll().filter((c) => c.id !== id);
   saveAll(all);
 }
+
+/**
+ * Export a conversation as a markdown string.
+ */
+export function exportAsMarkdown(messages, model) {
+  const lines = [];
+  lines.push(`# OmniAI Conversation Export`);
+  lines.push(`**Mode:** ${model || 'unknown'}`);
+  lines.push(`**Date:** ${new Date().toISOString()}`);
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+
+  for (const msg of messages) {
+    if (msg.role === 'user') {
+      lines.push(`## User`);
+      lines.push(msg.content);
+      if (msg.fileNames?.length) {
+        lines.push(`\n*Attached files: ${msg.fileNames.join(', ')}*`);
+      }
+      lines.push('');
+    } else if (msg.model === 'qa' && msg.primary && msg.qa) {
+      lines.push(`## QA/QC Analysis`);
+      lines.push(`### Primary Analysis (${msg.primary.provider})`);
+      lines.push(msg.primary.content);
+      lines.push('');
+      lines.push(`### QA Review (${msg.qa.provider})`);
+      lines.push(msg.qa.content);
+      lines.push('');
+    } else if (msg.model === 'all' && msg.responses) {
+      lines.push(`## All Models`);
+      for (const [provider, content] of Object.entries(msg.responses)) {
+        lines.push(`### ${provider.toUpperCase()}`);
+        lines.push(content);
+        lines.push('');
+      }
+    } else {
+      const label = msg.routedTo ? `AI (${msg.routedTo})` : 'AI';
+      lines.push(`## ${label}`);
+      lines.push(msg.content);
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Trigger a markdown file download in the browser.
+ */
+export function downloadMarkdown(messages, model) {
+  const md = exportAsMarkdown(messages, model);
+  const blob = new Blob([md], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `omniai-chat-${new Date().toISOString().slice(0, 10)}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+}

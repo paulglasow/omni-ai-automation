@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { listConversations, deleteConversation } from './conversations.js';
+import { useTheme } from './ThemeContext.jsx';
 
 const NAV_ITEMS = [
   { to: '/',         label: 'Dashboard',  sub: 'Overview & briefing' },
@@ -45,6 +46,7 @@ export default function Layout() {
   const [conversations, setConversations] = useState([]);
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, themeName, toggleTheme } = useTheme();
 
   // Refresh conversation list when navigating
   useEffect(() => {
@@ -204,6 +206,23 @@ export default function Layout() {
 
           {/* Footer */}
           <div style={{ padding: '12px 4px', borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' }}>
+            <button
+              onClick={toggleTheme}
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#ccc',
+                padding: '6px 12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.8rem',
+                width: '100%',
+                marginBottom: '8px',
+                transition: 'background 0.15s',
+              }}
+            >
+              {themeName === 'light' ? 'Dark Mode' : 'Light Mode'}
+            </button>
             <div style={{ color: '#4caf50', fontWeight: 600 }}>Secure</div>
             <div style={{ color: '#888', marginTop: '2px' }}>All AI calls are server-side.</div>
           </div>
@@ -214,7 +233,8 @@ export default function Layout() {
       <main style={{
         flex: 1,
         overflowY: 'auto',
-        background: '#fafafa',
+        background: theme.bg,
+        color: theme.text,
         ...(isMobile ? { paddingTop: '48px' } : {}),
       }}>
         <Outlet />
