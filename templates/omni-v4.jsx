@@ -17,7 +17,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { saveConversation, getConversation } from './conversations.js';
+import { saveConversation, getConversation, downloadMarkdown } from './conversations.js';
+import { useTheme } from './ThemeContext.jsx';
 
 const MODEL_OPTIONS = [
   { value: 'qa',        label: 'QA/QC Analysis' },
@@ -31,33 +32,31 @@ const MODEL_OPTIONS = [
 
 const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024; // 3MB total limit
 
-// Shared markdown styles for AI responses
-const markdownStyle = {
-  lineHeight: 1.6,
-  wordBreak: 'break-word',
-};
-const markdownComponents = {
-  p: ({ children }) => <p style={{ margin: '0 0 8px' }}>{children}</p>,
-  h2: ({ children }) => <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '12px 0 4px', borderBottom: '1px solid #e0e0e0', paddingBottom: '4px' }}>{children}</h2>,
-  h3: ({ children }) => <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '10px 0 4px' }}>{children}</h3>,
-  ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ul>,
-  ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ol>,
-  li: ({ children }) => <li style={{ marginBottom: '2px' }}>{children}</li>,
-  code: ({ inline, children }) =>
-    inline
-      ? <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: '3px', fontSize: '0.9em', fontFamily: 'monospace' }}>{children}</code>
-      : <pre style={{ background: '#f5f5f5', padding: '10px', borderRadius: '6px', overflow: 'auto', fontSize: '0.85rem', fontFamily: 'monospace', margin: '8px 0' }}><code>{children}</code></pre>,
-  table: ({ children }) => <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: '0.9rem' }}>{children}</table>,
-  th: ({ children }) => <th style={{ border: '1px solid #ddd', padding: '6px 10px', background: '#f5f5f5', textAlign: 'left', fontWeight: 600 }}>{children}</th>,
-  td: ({ children }) => <td style={{ border: '1px solid #ddd', padding: '6px 10px' }}>{children}</td>,
-  blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid #ccc', margin: '8px 0', padding: '4px 12px', color: '#555' }}>{children}</blockquote>,
-  strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
-};
+function buildMarkdownComponents(theme) {
+  return {
+    p: ({ children }) => <p style={{ margin: '0 0 8px' }}>{children}</p>,
+    h2: ({ children }) => <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '12px 0 4px', borderBottom: `1px solid ${theme.border}`, paddingBottom: '4px' }}>{children}</h2>,
+    h3: ({ children }) => <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '10px 0 4px' }}>{children}</h3>,
+    ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ul>,
+    ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: '20px' }}>{children}</ol>,
+    li: ({ children }) => <li style={{ marginBottom: '2px' }}>{children}</li>,
+    code: ({ inline, children }) =>
+      inline
+        ? <code style={{ background: theme.codeBg, padding: '1px 4px', borderRadius: '3px', fontSize: '0.9em', fontFamily: 'monospace' }}>{children}</code>
+        : <pre style={{ background: theme.codeBg, padding: '10px', borderRadius: '6px', overflow: 'auto', fontSize: '0.85rem', fontFamily: 'monospace', margin: '8px 0' }}><code>{children}</code></pre>,
+    table: ({ children }) => <table style={{ borderCollapse: 'collapse', width: '100%', margin: '8px 0', fontSize: '0.9rem' }}>{children}</table>,
+    th: ({ children }) => <th style={{ border: `1px solid ${theme.markdownTable}`, padding: '6px 10px', background: theme.markdownTableHeaderBg, textAlign: 'left', fontWeight: 600 }}>{children}</th>,
+    td: ({ children }) => <td style={{ border: `1px solid ${theme.markdownTable}`, padding: '6px 10px' }}>{children}</td>,
+    blockquote: ({ children }) => <blockquote style={{ borderLeft: `3px solid ${theme.blockquoteBorder}`, margin: '8px 0', padding: '4px 12px', color: theme.blockquoteText }}>{children}</blockquote>,
+    strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
+  };
+}
 
-function MarkdownContent({ content, color }) {
+function MarkdownContent({ content, theme }) {
+  const components = buildMarkdownComponents(theme);
   return (
-    <div style={{ ...markdownStyle, color: color || '#222' }}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+    <div style={{ lineHeight: 1.6, wordBreak: 'break-word', color: theme.text }}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {content}
       </ReactMarkdown>
     </div>
@@ -71,7 +70,7 @@ function formatCost(usd) {
   return `💰 $${usd.toFixed(4)}`;
 }
 
-function CostBadge({ usage }) {
+function CostBadge({ usage, theme }) {
   const cost = formatCost(usage?.total?.estimatedCostUsd);
   if (!cost) return null;
   return (
@@ -81,8 +80,8 @@ function CostBadge({ usage }) {
         marginLeft: '8px',
         padding: '1px 6px',
         borderRadius: '10px',
-        background: '#e8f5e9',
-        color: '#2e7d32',
+        background: theme?.costBg || '#e8f5e9',
+        color: theme?.costText || '#2e7d32',
         fontSize: '0.75rem',
         fontFamily: 'monospace',
         verticalAlign: 'middle',
@@ -113,7 +112,7 @@ function RouteBadge({ routedTo, bucket }) {
   );
 }
 
-function FileChips({ files, onRemove }) {
+function FileChips({ files, onRemove, theme }) {
   if (!files.length) return null;
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '0 16px 8px' }}>
@@ -126,8 +125,8 @@ function FileChips({ files, onRemove }) {
             gap: '4px',
             padding: '3px 10px',
             borderRadius: '12px',
-            background: '#e3f2fd',
-            color: '#1565c0',
+            background: theme?.chipBg || '#e3f2fd',
+            color: theme?.chipText || '#1565c0',
             fontSize: '0.8rem',
           }}
         >
@@ -154,25 +153,25 @@ function FileChips({ files, onRemove }) {
   );
 }
 
-function MessageBubble({ msg }) {
+function MessageBubble({ msg, theme }) {
   const isUser = msg.role === 'user';
 
   // QA/QC chain result display
   if (msg.model === 'qa' && msg.primary && msg.qa) {
     return (
       <div style={{ marginBottom: '16px' }}>
-        <div style={{ fontWeight: 600, marginBottom: '8px', color: '#555', fontSize: '1rem' }}>
+        <div style={{ fontWeight: 600, marginBottom: '8px', color: theme.textSecondary, fontSize: '1rem' }}>
           QA/QC Analysis
           {msg.usage?.total?.estimatedCostUsd != null && (
-            <CostBadge usage={msg.usage} />
+            <CostBadge usage={msg.usage} theme={theme} />
           )}
         </div>
 
         {/* Primary Analysis Card */}
         <div
           style={{
-            background: '#f0f7ff',
-            border: '2px solid #90caf9',
+            background: theme.primaryCardBg,
+            border: `2px solid ${theme.primaryCardBorder}`,
             borderRadius: '10px',
             padding: '12px',
             marginBottom: '10px',
@@ -184,17 +183,17 @@ function MessageBubble({ msg }) {
             </span>
             {msg.primary.provider.toUpperCase()}
             {msg.primary.usage && (
-              <CostBadge usage={{ total: { estimatedCostUsd: msg.primary.usage.estimatedCostUsd } }} />
+              <CostBadge usage={{ total: { estimatedCostUsd: msg.primary.usage.estimatedCostUsd } }} theme={theme} />
             )}
           </div>
-          <MarkdownContent content={msg.primary.content} />
+          <MarkdownContent content={msg.primary.content} theme={theme} />
         </div>
 
         {/* QA Review Card */}
         <div
           style={{
-            background: '#fff8e1',
-            border: '2px solid #ffcc02',
+            background: theme.qaCardBg,
+            border: `2px solid ${theme.qaCardBorder}`,
             borderRadius: '10px',
             padding: '12px',
             marginBottom: '10px',
@@ -206,15 +205,15 @@ function MessageBubble({ msg }) {
             </span>
             {msg.qa.provider.toUpperCase()}
             {msg.qa.usage && (
-              <CostBadge usage={{ total: { estimatedCostUsd: msg.qa.usage.estimatedCostUsd } }} />
+              <CostBadge usage={{ total: { estimatedCostUsd: msg.qa.usage.estimatedCostUsd } }} theme={theme} />
             )}
           </div>
-          <MarkdownContent content={msg.qa.content} />
+          <MarkdownContent content={msg.qa.content} theme={theme} />
         </div>
 
         {/* Routing scores */}
         {msg.routingScores && (
-          <div style={{ fontSize: '0.75rem', color: '#888', padding: '4px 0' }}>
+          <div style={{ fontSize: '0.75rem', color: theme.textMuted, padding: '4px 0' }}>
             Routing: {msg.primary.provider} ({msg.routingScores[msg.primary.provider]}) → {msg.qa.provider} ({msg.routingScores[msg.qa.provider]})
             {msg.bucket && ` | Category: ${msg.bucket}`}
           </div>
@@ -226,30 +225,30 @@ function MessageBubble({ msg }) {
   if (msg.model === 'all' && msg.responses) {
     return (
       <div style={{ marginBottom: '16px' }}>
-        <div style={{ fontWeight: 600, marginBottom: '8px', color: '#555' }}>
+        <div style={{ fontWeight: 600, marginBottom: '8px', color: theme.textSecondary }}>
           All Models
           {msg.usage?.total?.estimatedCostUsd != null && (
-            <CostBadge usage={msg.usage} />
+            <CostBadge usage={msg.usage} theme={theme} />
           )}
         </div>
         {Object.entries(msg.responses).map(([provider, content]) => (
           <div
             key={provider}
             style={{
-              background: '#f9f9f9',
-              border: '1px solid #e0e0e0',
+              background: theme.bgCard,
+              border: `1px solid ${theme.border}`,
               borderRadius: '8px',
               padding: '10px',
               marginBottom: '8px',
             }}
           >
-            <div style={{ fontWeight: 600, fontSize: '0.8rem', color: '#888', marginBottom: '4px' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.8rem', color: theme.textMuted, marginBottom: '4px' }}>
               {provider.toUpperCase()}
               {msg.usage?.[provider] && (
-                <CostBadge usage={{ total: { estimatedCostUsd: msg.usage[provider].estimatedCostUsd } }} />
+                <CostBadge usage={{ total: { estimatedCostUsd: msg.usage[provider].estimatedCostUsd } }} theme={theme} />
               )}
             </div>
-            <MarkdownContent content={content} />
+            <MarkdownContent content={content} theme={theme} />
           </div>
         ))}
       </div>
@@ -269,14 +268,14 @@ function MessageBubble({ msg }) {
           maxWidth: '75%',
           padding: '10px 14px',
           borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-          background: isUser ? '#1976d2' : '#f0f0f0',
-          color: isUser ? '#fff' : '#222',
+          background: isUser ? theme.userBubble : theme.aiBubble,
+          color: isUser ? theme.userBubbleText : theme.aiBubbleText,
           lineHeight: 1.6,
         }}
       >
         {isUser
           ? <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
-          : <MarkdownContent content={msg.content} />
+          : <MarkdownContent content={msg.content} theme={theme} />
         }
         {isUser && msg.fileNames?.length > 0 && (
           <div style={{ marginTop: '4px', fontSize: '0.75rem', color: '#bbdefb' }}>
@@ -284,9 +283,9 @@ function MessageBubble({ msg }) {
           </div>
         )}
         {!isUser && (
-          <div style={{ marginTop: '4px', fontSize: '0.75rem', color: isUser ? '#bbdefb' : '#888' }}>
+          <div style={{ marginTop: '4px', fontSize: '0.75rem', color: theme.textMuted }}>
             <RouteBadge routedTo={msg.routedTo} bucket={msg.bucket} />
-            <CostBadge usage={msg.usage} />
+            <CostBadge usage={msg.usage} theme={theme} />
           </div>
         )}
       </div>
@@ -330,6 +329,7 @@ export default function OmniAI() {
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [conversationId, setConversationId] = useState(null);
+  const { theme } = useTheme();
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -531,8 +531,8 @@ export default function OmniAI() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'system-ui, sans-serif' }}>
       {/* Toolbar */}
-      <div style={{ padding: '10px 16px', borderBottom: '1px solid #e0e0e0', background: '#fff', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 600, fontSize: '0.95rem', color: '#333' }}>Chat</span>
+      <div style={{ padding: '10px 16px', borderBottom: `1px solid ${theme.border}`, background: theme.toolbarBg, display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 600, fontSize: '0.95rem', color: theme.text }}>Chat</span>
         <span style={{ flex: 1 }} />
         <WorkspaceSelector workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} onChange={setActiveWorkspaceId} />
         <select
@@ -545,18 +545,23 @@ export default function OmniAI() {
           ))}
         </select>
         {sessionCost > 0 && (
-          <span style={{ fontSize: '0.85rem', background: '#e8f5e9', color: '#2e7d32', padding: '4px 10px', borderRadius: '12px', fontFamily: 'monospace' }}>
+          <span style={{ fontSize: '0.85rem', background: theme.costBg, color: theme.costText, padding: '4px 10px', borderRadius: '12px', fontFamily: 'monospace' }}>
             Session: ${sessionCost.toFixed(4)}
           </span>
         )}
-        <button onClick={clearMessages} style={{ background: '#f5f5f5', border: '1px solid #ddd', color: '#555', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
+        {messages.length > 0 && (
+          <button onClick={() => downloadMarkdown(messages, model)} style={{ background: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textSecondary, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
+            Export
+          </button>
+        )}
+        <button onClick={clearMessages} style={{ background: theme.bgCard, border: `1px solid ${theme.border}`, color: theme.textSecondary, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
           Clear
         </button>
       </div>
 
       {/* QA mode info banner */}
       {model === 'qa' && messages.length === 0 && (
-        <div style={{ background: '#fff3e0', padding: '8px 16px', fontSize: '0.85rem', color: '#e65100', borderBottom: '1px solid #ffe0b2' }}>
+        <div style={{ background: theme.infoBannerBg, padding: '8px 16px', fontSize: '0.85rem', color: theme.infoBannerText, borderBottom: `1px solid ${theme.infoBannerBorder}` }}>
           QA/QC mode: Your request is analyzed by the best-matched AI, then a second AI reviews and provides a combined recommendation. This makes 2 AI calls per request.
         </div>
       )}
@@ -576,13 +581,13 @@ export default function OmniAI() {
           </div>
         )}
         {messages.map((msg, i) => (
-          <MessageBubble key={i} msg={msg} />
+          <MessageBubble key={i} msg={msg} theme={theme} />
         ))}
         {loading && (
           <div style={{ color: '#888', fontStyle: 'italic', padding: '8px' }}>{loadingStep || 'Thinking...'}</div>
         )}
         {error && (
-          <div style={{ color: '#c62828', background: '#ffebee', padding: '8px 12px', borderRadius: '6px', marginBottom: '8px' }}>
+          <div style={{ color: theme.errorText, background: theme.errorBg, padding: '8px 12px', borderRadius: '6px', marginBottom: '8px' }}>
             {error}
           </div>
         )}
@@ -590,7 +595,7 @@ export default function OmniAI() {
       </div>
 
       {/* File chips */}
-      <FileChips files={attachedFiles} onRemove={removeFile} />
+      <FileChips files={attachedFiles} onRemove={removeFile} theme={theme} />
 
       {/* Hidden file input */}
       <input
@@ -606,11 +611,11 @@ export default function OmniAI() {
       <div
         style={{
           padding: '12px 16px',
-          borderTop: '1px solid #e0e0e0',
+          borderTop: `1px solid ${theme.border}`,
           display: 'flex',
           gap: '8px',
           alignItems: 'flex-end',
-          background: isDragging ? '#e3f2fd' : 'transparent',
+          background: isDragging ? theme.chipBg : theme.toolbarBg,
           transition: 'background 0.2s',
         }}
         onDragOver={handleDragOver}
@@ -624,8 +629,8 @@ export default function OmniAI() {
           style={{
             padding: '8px 12px',
             borderRadius: '10px',
-            background: '#f5f5f5',
-            border: '1px solid #ccc',
+            background: theme.bgCard,
+            border: `1px solid ${theme.border}`,
             fontSize: '1rem',
             cursor: loading ? 'not-allowed' : 'pointer',
             flexShrink: 0,
@@ -643,7 +648,9 @@ export default function OmniAI() {
             flex: 1,
             padding: '10px 14px',
             borderRadius: '10px',
-            border: isDragging ? '2px dashed #1976d2' : '1px solid #ccc',
+            border: isDragging ? '2px dashed #1976d2' : `1px solid ${theme.border}`,
+            background: theme.bgInput,
+            color: theme.text,
             fontSize: '1rem',
             resize: 'none',
             fontFamily: 'inherit',
