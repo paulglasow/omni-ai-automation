@@ -13,9 +13,11 @@
  * - Real-time conversation display
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { saveConversation, getConversation } from './conversations.js';
 
 const MODEL_OPTIONS = [
   { value: 'qa',        label: 'QA/QC Analysis' },
@@ -316,6 +318,7 @@ function WorkspaceSelector({ workspaces, activeWorkspaceId, onChange }) {
 }
 
 export default function OmniAI() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [model, setModel] = useState('qa');
@@ -326,8 +329,33 @@ export default function OmniAI() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState(null);
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
   const bottomRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // Load conversation from URL param ?c=<id>
+  useEffect(() => {
+    const cid = searchParams.get('c');
+    if (cid && cid !== conversationId) {
+      const conv = getConversation(cid);
+      if (conv) {
+        setMessages(conv.messages);
+        setModel(conv.model || 'qa');
+        setConversationId(cid);
+      }
+    }
+  // eslint-disable-next-line
+  }, [searchParams]);
+
+  // Auto-save conversation when messages change
+  const autoSave = useCallback((msgs, mdl) => {
+    if (msgs.length === 0) return;
+    const id = saveConversation(conversationId, msgs, mdl);
+    if (id !== conversationId) {
+      setConversationId(id);
+      setSearchParams({ c: id }, { replace: true });
+    }
+  }, [conversationId, setSearchParams]);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -470,7 +498,9 @@ export default function OmniAI() {
         routingScores: data.routingScores, // "qa" mode
       };
 
-      setMessages((prev) => [...prev, assistantMsg]);
+      const updatedMessages = [...history, assistantMsg];
+      setMessages(updatedMessages);
+      autoSave(updatedMessages, model);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -489,6 +519,8 @@ export default function OmniAI() {
     setMessages([]);
     setAttachedFiles([]);
     setError(null);
+    setConversationId(null);
+    setSearchParams({}, { replace: true });
   }
 
   // Calculate session cost
