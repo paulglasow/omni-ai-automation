@@ -497,10 +497,10 @@ export default function OmniAI() {
     .reduce((sum, m) => sum + (m.usage?.total?.estimatedCostUsd ?? 0), 0);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', fontFamily: 'system-ui, sans-serif', maxWidth: '900px', margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid #e0e0e0', background: '#1976d2', color: '#fff', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>OmniAI v4</span>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'system-ui, sans-serif' }}>
+      {/* Toolbar */}
+      <div style={{ padding: '10px 16px', borderBottom: '1px solid #e0e0e0', background: '#fff', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 600, fontSize: '0.95rem', color: '#333' }}>Chat</span>
         <span style={{ flex: 1 }} />
         <WorkspaceSelector workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} onChange={setActiveWorkspaceId} />
         <select
@@ -513,11 +513,11 @@ export default function OmniAI() {
           ))}
         </select>
         {sessionCost > 0 && (
-          <span style={{ fontSize: '0.85rem', background: 'rgba(255,255,255,0.2)', padding: '4px 10px', borderRadius: '12px' }}>
+          <span style={{ fontSize: '0.85rem', background: '#e8f5e9', color: '#2e7d32', padding: '4px 10px', borderRadius: '12px', fontFamily: 'monospace' }}>
             Session: ${sessionCost.toFixed(4)}
           </span>
         )}
-        <button onClick={clearMessages} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
+        <button onClick={clearMessages} style={{ background: '#f5f5f5', border: '1px solid #ddd', color: '#555', padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem' }}>
           Clear
         </button>
       </div>

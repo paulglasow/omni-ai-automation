@@ -22,6 +22,7 @@
     "node-fetch": "^3.3.2",
     "pdf-parse": "^2.4.5",
     "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.14.0",
     "readline-sync": "^1.4.10",
     "remark-gfm": "^4.0.1"
   },
