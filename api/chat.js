@@ -9,6 +9,7 @@
 
 import { buildUsage, aggregateUsage } from '../lib/cost-calculator.js';
 import { getSupabaseAdmin, extractJwt } from '../lib/supabase/server.js';
+import { routeForQA, buildQASystemPrompt, buildQAUserMessage } from '../lib/qa-router.js';
 
 const ENABLE_COST_ESTIMATES = process.env.ENABLE_COST_ESTIMATES !== 'false';
 
@@ -175,7 +176,16 @@ export default async function handler(req, res) {
     model = 'assist',
     workspaceId,
     conversationId,
+    files = [],
   } = req.body ?? {};
+
+  // Guard against oversized request bodies (Vercel limit is 4.5MB)
+  const bodySize = JSON.stringify(req.body).length;
+  if (bodySize > 4_000_000) {
+    return res.status(413).json({
+      error: 'Request too large. Please reduce file sizes (max ~3MB total).',
+    });
+  }
 
   // Normalise input: accept either messages[] or a plain prompt string
   const chatMessages = messages.length
@@ -183,6 +193,32 @@ export default async function handler(req, res) {
     : [{ role: 'user', content: String(prompt ?? '') }];
 
   const userPrompt = chatMessages.find((m) => m.role === 'user')?.content ?? '';
+
+  // Build file context string if files are attached
+  let fileContext = '';
+  if (files.length > 0) {
+    fileContext = files
+      .map((f) => `--- File: ${f.name} (${f.type || 'text/plain'}) ---\n${f.content}`)
+      .join('\n\n');
+    // Truncate to ~100K chars to stay within model context limits
+    if (fileContext.length > 100_000) {
+      fileContext = fileContext.slice(0, 100_000) + '\n\n[... content truncated due to size ...]';
+    }
+  }
+
+  // Prepend file content to messages if files are attached
+  const chatMessagesWithFiles = fileContext
+    ? chatMessages.map((m, i) => {
+        if (i === chatMessages.length - 1 && m.role === 'user') {
+          return { ...m, content: `${fileContext}\n\n${m.content}` };
+        }
+        return m;
+      })
+    : chatMessages;
+
+  const userPromptWithFiles = fileContext
+    ? `${fileContext}\n\n${userPrompt}`
+    : userPrompt;
 
   // Extract user identity from JWT (optional — best-effort)
   let userId = null;
@@ -200,19 +236,84 @@ export default async function handler(req, res) {
     let content, providerKey, bucket = null, routedTo = null;
     let providerUsage = {};
 
-    if (model === 'assist') {
+    if (model === 'qa') {
+      // -----------------------------------------------------------------------
+      // QA/QC Chain: Primary analysis -> Secondary QA review -> Combined output
+      // -----------------------------------------------------------------------
+      const routing = routeForQA(userPrompt, files);
+      bucket = routing.bucket;
+
+      // Step 1: Primary analysis
+      const primaryResult = await dispatch(
+        routing.primary,
+        chatMessagesWithFiles,
+        userPromptWithFiles
+      );
+      providerUsage[routing.primary] = primaryResult.usage;
+
+      // Step 2: QA review by secondary provider
+      const qaSystemPrompt = buildQASystemPrompt(routing.primary);
+      const qaUserMessage = buildQAUserMessage(
+        userPrompt,
+        primaryResult.content,
+        routing.primary,
+        fileContext || null
+      );
+      const qaMessages = [
+        { role: 'system', content: qaSystemPrompt },
+        { role: 'user', content: qaUserMessage },
+      ];
+      const qaResult = await dispatch(
+        routing.secondary,
+        qaMessages,
+        qaUserMessage
+      );
+      providerUsage[routing.secondary] = qaResult.usage;
+
+      // Build cost summary across both calls
+      const costSummary = buildCostSummary(providerUsage);
+
+      // Log both calls to Supabase
+      void logCostToSupabase({
+        userId, workspaceId, conversationId,
+        model: 'qa', routedTo: routing.primary,
+        usageSummary: primaryResult.usage,
+      });
+      void logCostToSupabase({
+        userId, workspaceId, conversationId,
+        model: 'qa', routedTo: routing.secondary,
+        usageSummary: qaResult.usage,
+      });
+
+      return res.status(200).json({
+        model: 'qa',
+        primary: {
+          provider: routing.primary,
+          content: primaryResult.content,
+          usage: primaryResult.usage,
+        },
+        qa: {
+          provider: routing.secondary,
+          content: qaResult.content,
+          usage: qaResult.usage,
+        },
+        bucket: routing.bucket,
+        routingScores: routing.scores,
+        ...(ENABLE_COST_ESTIMATES ? { usage: costSummary } : {}),
+      });
+    } else if (model === 'assist') {
       bucket = classifyPrompt(userPrompt);
       routedTo = bucketToProvider(bucket);
-      const result = await dispatch(routedTo, chatMessages, userPrompt);
+      const result = await dispatch(routedTo, chatMessagesWithFiles, userPromptWithFiles);
       content = result.content;
       providerUsage[routedTo] = result.usage;
       providerKey = 'assist';
     } else if (model === 'all') {
       const results = await Promise.allSettled([
-        callOpenAI(chatMessages).then((r) => ({ provider: 'openai', ...r })),
-        callClaude(chatMessages).then((r) => ({ provider: 'claude', ...r })),
-        callGemini(userPrompt).then((r) => ({ provider: 'gemini', ...r })),
-        callPerplexity(chatMessages).then((r) => ({ provider: 'perplexity', ...r })),
+        callOpenAI(chatMessagesWithFiles).then((r) => ({ provider: 'openai', ...r })),
+        callClaude(chatMessagesWithFiles).then((r) => ({ provider: 'claude', ...r })),
+        callGemini(userPromptWithFiles).then((r) => ({ provider: 'gemini', ...r })),
+        callPerplexity(chatMessagesWithFiles).then((r) => ({ provider: 'perplexity', ...r })),
       ]);
 
       const responses = {};
@@ -232,7 +333,7 @@ export default async function handler(req, res) {
         ...(ENABLE_COST_ESTIMATES ? { usage: buildCostSummary(providerUsage) } : {}),
       });
     } else {
-      const result = await dispatch(model, chatMessages, userPrompt);
+      const result = await dispatch(model, chatMessagesWithFiles, userPromptWithFiles);
       content = result.content;
       providerUsage[model] = result.usage;
       providerKey = model;
