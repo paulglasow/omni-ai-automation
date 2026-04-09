@@ -197,9 +197,23 @@ export default async function handler(req, res) {
   // Build file context string if files are attached
   let fileContext = '';
   if (files.length > 0) {
-    fileContext = files
-      .map((f) => `--- File: ${f.name} (${f.type || 'text/plain'}) ---\n${f.content}`)
-      .join('\n\n');
+    const fileTexts = [];
+    for (const f of files) {
+      let text = f.content;
+      // Extract text from PDF files sent as base64
+      if (f.encoding === 'base64' && f.type === 'application/pdf') {
+        try {
+          const pdfParse = (await import('pdf-parse')).default;
+          const buffer = Buffer.from(f.content, 'base64');
+          const pdf = await pdfParse(buffer);
+          text = pdf.text;
+        } catch (e) {
+          text = `[Failed to extract PDF text: ${e.message}]`;
+        }
+      }
+      fileTexts.push(`--- File: ${f.name} (${f.type || 'text/plain'}) ---\n${text}`);
+    }
+    fileContext = fileTexts.join('\n\n');
     // Truncate to ~100K chars to stay within model context limits
     if (fileContext.length > 100_000) {
       fileContext = fileContext.slice(0, 100_000) + '\n\n[... content truncated due to size ...]';

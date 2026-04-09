@@ -20,7 +20,10 @@
     "jsonwebtoken": "^9.0.3",
     "libsodium-wrappers": "^0.7.13",
     "node-fetch": "^3.3.2",
-    "readline-sync": "^1.4.10"
+    "pdf-parse": "^2.4.5",
+    "react-markdown": "^10.1.0",
+    "readline-sync": "^1.4.10",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.23.7",
