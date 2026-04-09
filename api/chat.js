@@ -210,6 +210,9 @@ export default async function handler(req, res) {
         } catch (e) {
           text = `[Failed to extract PDF text: ${e.message}]`;
         }
+      } else if (f.encoding === 'base64' && f.type?.startsWith('image/')) {
+        // Image files: provide metadata for text-based providers
+        text = `[Image file attached: ${f.name} (${f.type}). Image analysis available via Gemini.]`;
       }
       fileTexts.push(`--- File: ${f.name} (${f.type || 'text/plain'}) ---\n${text}`);
     }

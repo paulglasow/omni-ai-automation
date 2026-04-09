@@ -98,6 +98,19 @@ export function listConversations() {
 }
 
 /**
+ * Rename a conversation.
+ */
+export function renameConversation(id, newTitle) {
+  const all = loadAll();
+  const conv = all.find((c) => c.id === id);
+  if (conv) {
+    conv.title = newTitle;
+    conv.updatedAt = new Date().toISOString();
+    saveAll(all);
+  }
+}
+
+/**
  * Delete a conversation.
  */
 export function deleteConversation(id) {

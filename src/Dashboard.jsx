@@ -9,6 +9,21 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from './ThemeContext.jsx';
 
+function SkeletonBar({ width, height, theme }) {
+  return (
+    <div
+      style={{
+        width: width || '60%',
+        height: height || '24px',
+        borderRadius: '6px',
+        background: `linear-gradient(90deg, ${theme.borderLight} 25%, ${theme.border} 50%, ${theme.borderLight} 75%)`,
+        backgroundSize: '200% 100%',
+        animation: 'shimmer 1.5s infinite',
+      }}
+    />
+  );
+}
+
 function StatCard({ label, value, color, theme }) {
   return (
     <div
@@ -105,6 +120,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ maxWidth: '960px', margin: '0 auto', padding: '32px 24px' }}>
+      <style>{`@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`}</style>
       {/* Greeting */}
       <h1 style={{ fontSize: '1.8rem', fontWeight: 700, marginBottom: '4px', color: theme.text }}>
         {getGreeting()}
@@ -117,16 +133,16 @@ export default function Dashboard() {
       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '32px' }}>
         <StatCard theme={theme}
           label="Total Requests"
-          value={loading ? '...' : stats.totalRequests.toLocaleString()}
+          value={loading ? <SkeletonBar theme={theme} width="50px" /> : stats.totalRequests.toLocaleString()}
         />
         <StatCard theme={theme}
           label="Total Cost"
-          value={loading ? '...' : `$${stats.totalCost.toFixed(4)}`}
+          value={loading ? <SkeletonBar theme={theme} width="80px" /> : `$${stats.totalCost.toFixed(4)}`}
           color={theme.costText}
         />
         <StatCard theme={theme}
           label="Workspaces"
-          value={loading ? '...' : workspaceCount}
+          value={loading ? <SkeletonBar theme={theme} width="30px" /> : workspaceCount}
         />
         <StatCard theme={theme}
           label="AI Providers"

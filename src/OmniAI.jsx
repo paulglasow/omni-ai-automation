@@ -31,6 +31,7 @@ const MODEL_OPTIONS = [
 ];
 
 const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024; // 3MB total limit
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'];
 
 function buildMarkdownComponents(theme) {
   return {
@@ -62,7 +63,7 @@ function MarkdownContent({ content, theme }) {
     </div>
   );
 }
-const ACCEPTED_FILE_TYPES = '.txt,.csv,.json,.md,.pdf,.log,.xml,.html,.js,.jsx,.ts,.tsx,.py,.sql,.yaml,.yml';
+const ACCEPTED_FILE_TYPES = '.txt,.csv,.json,.md,.pdf,.log,.xml,.html,.js,.jsx,.ts,.tsx,.py,.sql,.yaml,.yml,.png,.jpg,.jpeg,.gif,.webp,.bmp';
 
 function formatCost(usd) {
   if (usd == null || usd === 0) return null;
@@ -70,9 +71,13 @@ function formatCost(usd) {
   return `💰 $${usd.toFixed(4)}`;
 }
 
-function CostBadge({ usage, theme }) {
+function CostBadge({ usage, theme, showTokens }) {
   const cost = formatCost(usage?.total?.estimatedCostUsd);
   if (!cost) return null;
+  const total = usage?.total || {};
+  const inputT = total.inputTokens ?? 0;
+  const outputT = total.outputTokens ?? 0;
+  const tokenInfo = showTokens && (inputT || outputT) ? ` (${inputT}/${outputT} tok)` : '';
   return (
     <span
       style={{
@@ -86,8 +91,9 @@ function CostBadge({ usage, theme }) {
         fontFamily: 'monospace',
         verticalAlign: 'middle',
       }}
+      title={tokenInfo ? `Input: ${inputT} tokens, Output: ${outputT} tokens` : ''}
     >
-      {cost}
+      {cost}{tokenInfo}
     </span>
   );
 }
@@ -285,7 +291,7 @@ function MessageBubble({ msg, theme }) {
         {!isUser && (
           <div style={{ marginTop: '4px', fontSize: '0.75rem', color: theme.textMuted }}>
             <RouteBadge routedTo={msg.routedTo} bucket={msg.bucket} />
-            <CostBadge usage={msg.usage} theme={theme} />
+            <CostBadge usage={msg.usage} theme={theme} showTokens />
           </div>
         )}
       </div>
@@ -383,6 +389,20 @@ export default function OmniAI() {
       .catch(() => {});
   }, []);
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    function handleGlobalKeys(e) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === 'k') { e.preventDefault(); clearMessages(); }
+      if (mod && e.key === 'e' && messages.length > 0) { e.preventDefault(); downloadMarkdown(messages, model); }
+    }
+    window.addEventListener('keydown', handleGlobalKeys);
+    return () => window.removeEventListener('keydown', handleGlobalKeys);
+  });
+
+  // Load system prompt from localStorage
+  const systemPrompt = localStorage.getItem('omni_system_prompt') || '';
+
   // Read files into state
   function processFiles(fileList) {
     const newFiles = Array.from(fileList);
@@ -398,18 +418,20 @@ export default function OmniAI() {
       (file) =>
         new Promise((resolve, reject) => {
           const reader = new FileReader();
-          const isPdf = file.name.toLowerCase().endsWith('.pdf');
+          const ext = file.name.toLowerCase().match(/\.\w+$/)?.[0] || '';
+          const isPdf = ext === '.pdf';
+          const isImage = IMAGE_EXTENSIONS.includes(ext);
+          const isBinary = isPdf || isImage;
           reader.onload = () => {
-            if (isPdf) {
-              // Send PDF as base64 for server-side text extraction
-              const base64 = reader.result.split(',')[1]; // strip data:...;base64, prefix
-              resolve({ name: file.name, size: file.size, type: 'application/pdf', content: base64, encoding: 'base64' });
+            if (isBinary) {
+              const base64 = reader.result.split(',')[1];
+              resolve({ name: file.name, size: file.size, type: file.type || (isImage ? `image/${ext.slice(1)}` : 'application/pdf'), content: base64, encoding: 'base64' });
             } else {
               resolve({ name: file.name, size: file.size, type: file.type, content: reader.result });
             }
           };
           reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
-          isPdf ? reader.readAsDataURL(file) : reader.readAsText(file);
+          isBinary ? reader.readAsDataURL(file) : reader.readAsText(file);
         })
     );
 
@@ -475,7 +497,10 @@ export default function OmniAI() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          messages: history.map((m) => ({ role: m.role, content: m.content })),
+          messages: [
+            ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+            ...history.map((m) => ({ role: m.role, content: m.content })),
+          ],
           model,
           ...(activeWorkspaceId ? { workspaceId: activeWorkspaceId } : {}),
           ...(filesPayload.length ? { files: filesPayload } : {}),
@@ -576,7 +601,10 @@ export default function OmniAI() {
               Use <strong>QA/QC Analysis</strong> for AI-reviewed answers, or select a specific model above.
             </div>
             <div style={{ fontSize: '0.85rem', marginTop: '4px', color: '#bbb' }}>
-              Attach files using the button below or drag and drop onto the input area.
+              Attach files (including images) using the + button or drag and drop.
+            </div>
+            <div style={{ fontSize: '0.75rem', marginTop: '8px', color: '#ccc' }}>
+              Shortcuts: Cmd/Ctrl+K new chat | Cmd/Ctrl+E export
             </div>
           </div>
         )}
