@@ -20,20 +20,30 @@ export default function App() {
       try {
         setUser(JSON.parse(savedUser));
       } catch {}
-    }
-    // Also check for legacy device token
-    const deviceToken = localStorage.getItem('omni_device_token');
-    if (!token && deviceToken) {
+    } else if (localStorage.getItem('omni_anonymous') === 'true') {
+      // Restore anonymous session
       setUser({ anonymous: true });
+    } else {
+      // Also check for legacy device token
+      const deviceToken = localStorage.getItem('omni_device_token');
+      if (deviceToken) {
+        setUser({ anonymous: true });
+      }
     }
     setAuthChecked(true);
   }, []);
 
   function handleAuth(userData, token) {
-    setUser(userData || { anonymous: true });
-    // Also set the legacy token format for backward compat with /api/chat
+    const resolvedUser = userData || { anonymous: true };
+    setUser(resolvedUser);
     if (token) {
       localStorage.setItem('omni_device_token', token);
+    }
+    if (resolvedUser.anonymous) {
+      localStorage.setItem('omni_anonymous', 'true');
+    }
+    if (userData && !userData.anonymous) {
+      localStorage.setItem('omni_user', JSON.stringify(userData));
     }
   }
 
@@ -41,6 +51,7 @@ export default function App() {
     localStorage.removeItem('omni_auth_token');
     localStorage.removeItem('omni_user');
     localStorage.removeItem('omni_device_token');
+    localStorage.removeItem('omni_anonymous');
     setUser(null);
   }
 
