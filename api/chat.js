@@ -13,19 +13,27 @@ import { routeForQA, buildQASystemPrompt, buildQAUserMessage } from '../lib/qa-r
 
 const ENABLE_COST_ESTIMATES = process.env.ENABLE_COST_ESTIMATES !== 'false';
 
+// Owner email — only this authenticated user can use server-side API keys.
+// Set OWNER_EMAIL in Vercel env vars. Everyone else must bring their own keys.
+const OWNER_EMAIL = process.env.OWNER_EMAIL || '';
+
 // ---------------------------------------------------------------------------
 // Provider helpers
 // ---------------------------------------------------------------------------
 
-// Resolve API key: user-provided (BYOK) takes priority over server env var
-function resolveKey(userKeys, provider, envVar) {
-  const key = userKeys?.[provider] || process.env[envVar];
-  if (!key) throw new Error(`${provider} API key not configured. Add your key in Settings.`);
-  return key;
+// Resolve API key: user-provided (BYOK) first, then server env var (owner only)
+function resolveKey(userKeys, provider, envVar, isOwner) {
+  // Always try user-provided key first
+  if (userKeys?.[provider]) return userKeys[provider];
+  // Server-side env var only allowed for the verified owner
+  if (isOwner && process.env[envVar]) return process.env[envVar];
+  throw new Error(
+    `${provider} API key not configured. Go to Settings and add your own API key.`
+  );
 }
 
-async function callOpenAI(messages, keys) {
-  const apiKey = resolveKey(keys, 'openai', 'OPENAI_API_KEY');
+async function callOpenAI(messages, keys, isOwner) {
+  const apiKey = resolveKey(keys, 'openai', 'OPENAI_API_KEY', isOwner);
   const { default: OpenAI } = await import('openai');
   const client = new OpenAI({ apiKey });
   const res = await client.chat.completions.create({
@@ -39,8 +47,8 @@ async function callOpenAI(messages, keys) {
   };
 }
 
-async function callClaude(messages, keys) {
-  const apiKey = resolveKey(keys, 'claude', 'ANTHROPIC_API_KEY');
+async function callClaude(messages, keys, isOwner) {
+  const apiKey = resolveKey(keys, 'claude', 'ANTHROPIC_API_KEY', isOwner);
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
   const client = new Anthropic({ apiKey });
   const systemMsg = messages.find((m) => m.role === 'system');
@@ -57,8 +65,8 @@ async function callClaude(messages, keys) {
   };
 }
 
-async function callGemini(prompt, keys) {
-  const apiKey = resolveKey(keys, 'gemini', 'GEMINI_API_KEY');
+async function callGemini(prompt, keys, isOwner) {
+  const apiKey = resolveKey(keys, 'gemini', 'GEMINI_API_KEY', isOwner);
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
@@ -74,11 +82,11 @@ async function callGemini(prompt, keys) {
   };
 }
 
-async function callPerplexity(messages, keys) {
-  const apiKey = keys?.perplexity || process.env.PERPLEXITY_API_KEY;
+async function callPerplexity(messages, keys, isOwner) {
+  const apiKey = keys?.perplexity || (isOwner ? process.env.PERPLEXITY_API_KEY : null);
   if (!apiKey) {
     // Fall back to GPT-4o if Perplexity key is absent
-    return callOpenAI(messages, keys);
+    return callOpenAI(messages, keys, isOwner);
   }
   const res = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',
@@ -248,15 +256,20 @@ export default async function handler(req, res) {
 
   // Extract user identity from JWT (optional — best-effort)
   let userId = null;
+  let userEmail = null;
   try {
     const jwt = extractJwt(req.headers.authorization);
     const { createClient } = await import('@supabase/supabase-js');
     const client = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
     const { data: { user } } = await client.auth.getUser(jwt);
     userId = user?.id ?? null;
+    userEmail = user?.email ?? null;
   } catch {
     // Unauthenticated requests are still served (public/anonymous usage)
   }
+
+  // Owner check: only the verified owner can use server-side API keys
+  const isOwner = !!(OWNER_EMAIL && userEmail && userEmail.toLowerCase() === OWNER_EMAIL.toLowerCase());
 
   try {
     let content, providerKey, bucket = null, routedTo = null;
@@ -274,7 +287,8 @@ export default async function handler(req, res) {
         routing.primary,
         chatMessagesWithFiles,
         userPromptWithFiles,
-        apiKeys
+        apiKeys,
+        isOwner
       );
       providerUsage[routing.primary] = primaryResult.usage;
 
@@ -294,7 +308,8 @@ export default async function handler(req, res) {
         routing.secondary,
         qaMessages,
         qaUserMessage,
-        apiKeys
+        apiKeys,
+        isOwner
       );
       providerUsage[routing.secondary] = qaResult.usage;
 
@@ -332,16 +347,16 @@ export default async function handler(req, res) {
     } else if (model === 'assist') {
       bucket = classifyPrompt(userPrompt);
       routedTo = bucketToProvider(bucket);
-      const result = await dispatch(routedTo, chatMessagesWithFiles, userPromptWithFiles, apiKeys);
+      const result = await dispatch(routedTo, chatMessagesWithFiles, userPromptWithFiles, apiKeys, isOwner);
       content = result.content;
       providerUsage[routedTo] = result.usage;
       providerKey = 'assist';
     } else if (model === 'all') {
       const results = await Promise.allSettled([
-        callOpenAI(chatMessagesWithFiles, apiKeys).then((r) => ({ provider: 'openai', ...r })),
-        callClaude(chatMessagesWithFiles, apiKeys).then((r) => ({ provider: 'claude', ...r })),
-        callGemini(userPromptWithFiles, apiKeys).then((r) => ({ provider: 'gemini', ...r })),
-        callPerplexity(chatMessagesWithFiles, apiKeys).then((r) => ({ provider: 'perplexity', ...r })),
+        callOpenAI(chatMessagesWithFiles, apiKeys, isOwner).then((r) => ({ provider: 'openai', ...r })),
+        callClaude(chatMessagesWithFiles, apiKeys, isOwner).then((r) => ({ provider: 'claude', ...r })),
+        callGemini(userPromptWithFiles, apiKeys, isOwner).then((r) => ({ provider: 'gemini', ...r })),
+        callPerplexity(chatMessagesWithFiles, apiKeys, isOwner).then((r) => ({ provider: 'perplexity', ...r })),
       ]);
 
       const responses = {};
@@ -361,7 +376,7 @@ export default async function handler(req, res) {
         ...(ENABLE_COST_ESTIMATES ? { usage: buildCostSummary(providerUsage) } : {}),
       });
     } else {
-      const result = await dispatch(model, chatMessagesWithFiles, userPromptWithFiles, apiKeys);
+      const result = await dispatch(model, chatMessagesWithFiles, userPromptWithFiles, apiKeys, isOwner);
       content = result.content;
       providerUsage[model] = result.usage;
       providerKey = model;
@@ -400,12 +415,12 @@ export default async function handler(req, res) {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-async function dispatch(provider, messages, prompt, keys) {
+async function dispatch(provider, messages, prompt, keys, isOwner) {
   switch (provider) {
-    case 'openai':     return callOpenAI(messages, keys);
-    case 'claude':     return callClaude(messages, keys);
-    case 'gemini':     return callGemini(prompt, keys);
-    case 'perplexity': return callPerplexity(messages, keys);
+    case 'openai':     return callOpenAI(messages, keys, isOwner);
+    case 'claude':     return callClaude(messages, keys, isOwner);
+    case 'gemini':     return callGemini(prompt, keys, isOwner);
+    case 'perplexity': return callPerplexity(messages, keys, isOwner);
     default:           throw new Error(`Unknown provider: ${provider}`);
   }
 }
