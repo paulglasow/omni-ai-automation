@@ -17,10 +17,17 @@ const ENABLE_COST_ESTIMATES = process.env.ENABLE_COST_ESTIMATES !== 'false';
 // Provider helpers
 // ---------------------------------------------------------------------------
 
-async function callOpenAI(messages) {
-  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not set');
+// Resolve API key: user-provided (BYOK) takes priority over server env var
+function resolveKey(userKeys, provider, envVar) {
+  const key = userKeys?.[provider] || process.env[envVar];
+  if (!key) throw new Error(`${provider} API key not configured. Add your key in Settings.`);
+  return key;
+}
+
+async function callOpenAI(messages, keys) {
+  const apiKey = resolveKey(keys, 'openai', 'OPENAI_API_KEY');
   const { default: OpenAI } = await import('openai');
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const client = new OpenAI({ apiKey });
   const res = await client.chat.completions.create({
     model: 'gpt-4o',
     messages,
@@ -32,10 +39,10 @@ async function callOpenAI(messages) {
   };
 }
 
-async function callClaude(messages) {
-  if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY not set');
+async function callClaude(messages, keys) {
+  const apiKey = resolveKey(keys, 'claude', 'ANTHROPIC_API_KEY');
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({ apiKey });
   const systemMsg = messages.find((m) => m.role === 'system');
   const userMsgs = messages.filter((m) => m.role !== 'system');
   const res = await client.messages.create({
@@ -50,10 +57,10 @@ async function callClaude(messages) {
   };
 }
 
-async function callGemini(prompt) {
-  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not set');
+async function callGemini(prompt, keys) {
+  const apiKey = resolveKey(keys, 'gemini', 'GEMINI_API_KEY');
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
   const res = await model.generateContent(prompt);
   const text = res.response.text();
@@ -67,15 +74,16 @@ async function callGemini(prompt) {
   };
 }
 
-async function callPerplexity(messages) {
-  if (!process.env.PERPLEXITY_API_KEY) {
+async function callPerplexity(messages, keys) {
+  const apiKey = keys?.perplexity || process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) {
     // Fall back to GPT-4o if Perplexity key is absent
-    return callOpenAI(messages);
+    return callOpenAI(messages, keys);
   }
   const res = await fetch('https://api.perplexity.ai/chat/completions', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.PERPLEXITY_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -177,6 +185,7 @@ export default async function handler(req, res) {
     workspaceId,
     conversationId,
     files = [],
+    apiKeys = {},
   } = req.body ?? {};
 
   // Guard against oversized request bodies (Vercel limit is 4.5MB)
@@ -264,7 +273,8 @@ export default async function handler(req, res) {
       const primaryResult = await dispatch(
         routing.primary,
         chatMessagesWithFiles,
-        userPromptWithFiles
+        userPromptWithFiles,
+        apiKeys
       );
       providerUsage[routing.primary] = primaryResult.usage;
 
@@ -283,7 +293,8 @@ export default async function handler(req, res) {
       const qaResult = await dispatch(
         routing.secondary,
         qaMessages,
-        qaUserMessage
+        qaUserMessage,
+        apiKeys
       );
       providerUsage[routing.secondary] = qaResult.usage;
 
@@ -321,16 +332,16 @@ export default async function handler(req, res) {
     } else if (model === 'assist') {
       bucket = classifyPrompt(userPrompt);
       routedTo = bucketToProvider(bucket);
-      const result = await dispatch(routedTo, chatMessagesWithFiles, userPromptWithFiles);
+      const result = await dispatch(routedTo, chatMessagesWithFiles, userPromptWithFiles, apiKeys);
       content = result.content;
       providerUsage[routedTo] = result.usage;
       providerKey = 'assist';
     } else if (model === 'all') {
       const results = await Promise.allSettled([
-        callOpenAI(chatMessagesWithFiles).then((r) => ({ provider: 'openai', ...r })),
-        callClaude(chatMessagesWithFiles).then((r) => ({ provider: 'claude', ...r })),
-        callGemini(userPromptWithFiles).then((r) => ({ provider: 'gemini', ...r })),
-        callPerplexity(chatMessagesWithFiles).then((r) => ({ provider: 'perplexity', ...r })),
+        callOpenAI(chatMessagesWithFiles, apiKeys).then((r) => ({ provider: 'openai', ...r })),
+        callClaude(chatMessagesWithFiles, apiKeys).then((r) => ({ provider: 'claude', ...r })),
+        callGemini(userPromptWithFiles, apiKeys).then((r) => ({ provider: 'gemini', ...r })),
+        callPerplexity(chatMessagesWithFiles, apiKeys).then((r) => ({ provider: 'perplexity', ...r })),
       ]);
 
       const responses = {};
@@ -350,7 +361,7 @@ export default async function handler(req, res) {
         ...(ENABLE_COST_ESTIMATES ? { usage: buildCostSummary(providerUsage) } : {}),
       });
     } else {
-      const result = await dispatch(model, chatMessagesWithFiles, userPromptWithFiles);
+      const result = await dispatch(model, chatMessagesWithFiles, userPromptWithFiles, apiKeys);
       content = result.content;
       providerUsage[model] = result.usage;
       providerKey = model;
@@ -389,12 +400,12 @@ export default async function handler(req, res) {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-async function dispatch(provider, messages, prompt) {
+async function dispatch(provider, messages, prompt, keys) {
   switch (provider) {
-    case 'openai':     return callOpenAI(messages);
-    case 'claude':     return callClaude(messages);
-    case 'gemini':     return callGemini(prompt);
-    case 'perplexity': return callPerplexity(messages);
+    case 'openai':     return callOpenAI(messages, keys);
+    case 'claude':     return callClaude(messages, keys);
+    case 'gemini':     return callGemini(prompt, keys);
+    case 'perplexity': return callPerplexity(messages, keys);
     default:           throw new Error(`Unknown provider: ${provider}`);
   }
 }

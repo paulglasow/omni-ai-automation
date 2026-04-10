@@ -8,6 +8,13 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from './ThemeContext.jsx';
 
+const API_KEY_FIELDS = [
+  { key: 'openai', name: 'OpenAI', placeholder: 'sk-...', link: 'https://platform.openai.com/api-keys' },
+  { key: 'claude', name: 'Anthropic (Claude)', placeholder: 'sk-ant-...', link: 'https://console.anthropic.com/settings/keys' },
+  { key: 'gemini', name: 'Google (Gemini)', placeholder: 'AIzaSy...', link: 'https://aistudio.google.com/apikey' },
+  { key: 'perplexity', name: 'Perplexity', placeholder: 'pplx-...', link: 'https://www.perplexity.ai/settings/api' },
+];
+
 const PROVIDERS = [
   { key: 'openai', name: 'OpenAI (GPT-4o)', envVar: 'OPENAI_API_KEY' },
   { key: 'claude', name: 'Anthropic (Claude)', envVar: 'ANTHROPIC_API_KEY' },
@@ -39,6 +46,10 @@ function StatusDot({ status }) {
 
 export default function Settings() {
   const { theme } = useTheme();
+  const [apiKeysState, setApiKeysState] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('omni_api_keys') || '{}'); } catch { return {}; }
+  });
+  const [keysSaved, setKeysSaved] = useState(false);
   const [sysPrompt, setSysPrompt] = useState(() => localStorage.getItem('omni_system_prompt') || '');
   const [promptSaved, setPromptSaved] = useState(false);
   const [providerStatus, setProviderStatus] = useState(
@@ -106,6 +117,70 @@ export default function Settings() {
       <p style={{ color: theme.textMuted, marginTop: 0, marginBottom: '28px' }}>
         Platform configuration and API provider status.
       </p>
+
+      {/* API Keys (BYOK) */}
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '0.85rem', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+          Your API Keys
+        </h2>
+        <div style={{ background: theme.bgCard, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '16px' }}>
+          <p style={{ fontSize: '0.8rem', color: theme.textMuted, margin: '0 0 12px' }}>
+            Enter your own API keys below. Keys are stored only in your browser (localStorage) and sent with each request. They are never stored on our servers.
+          </p>
+          {API_KEY_FIELDS.map((field) => (
+            <div key={field.key} style={{ marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 500, color: theme.textSecondary }}>{field.name}</label>
+                <a href={field.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: '#1976d2' }}>Get key</a>
+              </div>
+              <input
+                type="password"
+                value={apiKeysState[field.key] || ''}
+                onChange={(e) => {
+                  setApiKeysState((prev) => ({ ...prev, [field.key]: e.target.value }));
+                  setKeysSaved(false);
+                }}
+                placeholder={field.placeholder}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  border: `1px solid ${theme.border}`,
+                  background: theme.bgInput,
+                  color: theme.text,
+                  fontSize: '0.85rem',
+                  fontFamily: 'monospace',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              onClick={() => {
+                localStorage.setItem('omni_api_keys', JSON.stringify(apiKeysState));
+                setKeysSaved(true);
+                setTimeout(() => setKeysSaved(false), 2000);
+              }}
+              style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', background: '#1976d2', color: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+            >
+              Save Keys
+            </button>
+            <button
+              onClick={() => {
+                setApiKeysState({});
+                localStorage.removeItem('omni_api_keys');
+                setKeysSaved(true);
+                setTimeout(() => setKeysSaved(false), 2000);
+              }}
+              style={{ padding: '8px 16px', borderRadius: '6px', border: `1px solid ${theme.border}`, background: theme.bgCard, color: theme.textSecondary, cursor: 'pointer', fontSize: '0.85rem' }}
+            >
+              Clear All
+            </button>
+            {keysSaved && <span style={{ color: theme.costText, fontSize: '0.85rem' }}>Saved</span>}
+          </div>
+        </div>
+      </div>
 
       {/* Provider Status */}
       <div style={{ marginBottom: '32px' }}>

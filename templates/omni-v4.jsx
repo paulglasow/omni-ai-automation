@@ -492,6 +492,10 @@ export default function OmniAI() {
     setLoading(true);
     setError(null);
 
+    // Load user API keys from localStorage (BYOK)
+    let userApiKeys = {};
+    try { userApiKeys = JSON.parse(localStorage.getItem('omni_api_keys') || '{}'); } catch {}
+
     // Prepare files payload (name, type, content only — not the full File object)
     const filesPayload = attachedFiles.map((f) => ({
       name: f.name,
@@ -517,6 +521,7 @@ export default function OmniAI() {
           model,
           ...(activeWorkspaceId ? { workspaceId: activeWorkspaceId } : {}),
           ...(filesPayload.length ? { files: filesPayload } : {}),
+          ...(Object.keys(userApiKeys).length ? { apiKeys: userApiKeys } : {}),
         }),
       });
 
