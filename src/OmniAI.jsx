@@ -353,6 +353,19 @@ export default function OmniAI() {
   // eslint-disable-next-line
   }, [searchParams]);
 
+  // Load template from URL param ?template=...&model=...
+  useEffect(() => {
+    const tmpl = searchParams.get('template');
+    const tmplModel = searchParams.get('model');
+    if (tmpl) {
+      setInput(decodeURIComponent(tmpl));
+      if (tmplModel) setModel(tmplModel);
+      // Clear template params so they don't re-trigger
+      setSearchParams({}, { replace: true });
+    }
+  // eslint-disable-next-line
+  }, []);
+
   // Auto-save conversation when messages change
   const autoSave = useCallback((msgs, mdl) => {
     if (msgs.length === 0) return;
