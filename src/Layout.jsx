@@ -40,7 +40,7 @@ function SidebarLink({ to, label, sub, onClick }) {
   );
 }
 
-export default function Layout() {
+export default function Layout({ user, onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [conversations, setConversations] = useState([]);
@@ -269,6 +269,27 @@ export default function Layout() {
 
           {/* Footer */}
           <div style={{ padding: '12px 4px', borderTop: '1px solid rgba(255,255,255,0.1)', fontSize: '0.75rem' }}>
+            {user && !user.anonymous && (
+              <div style={{ marginBottom: '8px', padding: '6px 8px', background: 'rgba(255,255,255,0.06)', borderRadius: '6px' }}>
+                <div style={{ color: '#ccc', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user.email}
+                </div>
+                <button
+                  onClick={onLogout}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#ef5350',
+                    cursor: 'pointer',
+                    fontSize: '0.7rem',
+                    padding: '2px 0 0',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
             <button
               onClick={toggleTheme}
               style={{

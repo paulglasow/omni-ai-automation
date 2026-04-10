@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from './ThemeContext.jsx';
+import { getAllTemplates } from './promptTemplates.js';
 
 function SkeletonBar({ width, height, theme }) {
   return (
@@ -157,8 +158,43 @@ export default function Dashboard() {
         </h2>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <QuickAction theme={theme} label="New QA/QC Chat" onClick={() => navigate('/chat')} />
-          <QuickAction theme={theme} label="Upload Files for Analysis" onClick={() => navigate('/chat')} />
           <QuickAction theme={theme} label="View Settings" onClick={() => navigate('/settings')} />
+        </div>
+      </div>
+
+      {/* Prompt Templates */}
+      <div style={{ marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '0.85rem', color: theme.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
+          Prompt Templates
+        </h2>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {getAllTemplates().map((t) => (
+            <button
+              key={t.id}
+              onClick={() => navigate(`/chat?template=${encodeURIComponent(t.prompt)}&model=${t.model}`)}
+              style={{
+                background: theme.bgCard,
+                border: `1px solid ${theme.border}`,
+                borderRadius: '10px',
+                padding: '10px 16px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                color: theme.text,
+                transition: 'border-color 0.15s',
+                minWidth: '160px',
+                flex: '0 1 auto',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#1976d2'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = theme.border; }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: '2px' }}>{t.name}</div>
+              <div style={{ fontSize: '0.75rem', color: theme.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {t.prompt.slice(0, 50)}...
+              </div>
+            </button>
+          ))}
         </div>
       </div>
 
