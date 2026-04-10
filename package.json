@@ -14,12 +14,15 @@
     "verify": "node scripts/verify-setup.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.87.0",
+    "@google/generative-ai": "^0.24.1",
     "@octokit/rest": "^20.0.2",
     "@supabase/supabase-js": "^2.39.0",
     "dotenv": "^16.4.1",
     "jsonwebtoken": "^9.0.3",
     "libsodium-wrappers": "^0.7.13",
     "node-fetch": "^3.3.2",
+    "openai": "^6.34.0",
     "pdf-parse": "^2.4.5",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.14.0",
